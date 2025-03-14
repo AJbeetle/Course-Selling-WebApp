@@ -3,7 +3,7 @@
     const {handleUserAccess, handleUserProgressUptoDate} = require("../../controllers/user");
 
     // for user enrolling or unenrolling from a course
-    courseRouter.post("/access", handleUserAccess);
+    courseRouter.patch("/access", handleUserAccess);
 
     // for users course progress syncing with database
     courseRouter.patch("/progressUptoDate",handleUserProgressUptoDate);
