@@ -26,10 +26,6 @@ const courseSchema = new Schema({
     creatorId : {type:mongoose.Schema.Types.ObjectId, ref:"admins", require:true}
 })
 
-const purchaseSchema = new Schema({
-    userId : {type:mongoose.Schema.Types.ObjectId, ref:"users", require:true},
-    courseId : {type:mongoose.Schema.Types.ObjectId, ref:"courses", require:true}
-})
 
 
 // Problem with schema which is defined below : As the course grows, the content array will incease in size get bloated, so slowing down queries. So it is not recommended to have single courseContent document for each course It is better you have multiple courseContent referenced to a course with timestamp in each of those. So, order of content added is also recognisable
@@ -45,7 +41,7 @@ const purchaseSchema = new Schema({
 
 }) */
 
-const courseContentSchema = Schema({
+const courseContentSchema = new Schema({
     courseId : {type:mongoose.Schema.Types.ObjectId, ref:"courses", require:true},
     title : {type:String, require:true},    //like week1, week2, week3 ...
     url : {type:String} 
@@ -68,6 +64,19 @@ courseContentSchema.set("toObject", { virtuals: true });
 // const content = await CourseContent.findOne({ courseId: courseId }).populate("courseImage");
 // console.log(content.courseImage.image); // Outputs: "https://example.com/react.jpg"
 
+const purchaseSchema = new Schema({
+    userId : {type:mongoose.Schema.Types.ObjectId, ref:"users", require:true},
+    courseId : {type:mongoose.Schema.Types.ObjectId, ref:"courses", require:true},
+    courseStatus : [
+        {
+            contentId : {type:mongoose.Schema.Types.ObjectId, ref:"courseContents",required:true},
+            completed : {type:Boolean,default:false},
+            lastAccessed : {type:Date, default: Date.now}
+        }
+    ],                               // this key is used to see how much of a course content is completed and when [how often] user visited it OR last Accessed
+    courseCompletePercent : {type:Number, default:0},    // this key is used to show only those courses on dashboard that are done upto 30% or more also, this key can be used further to animate UI for how much a course has been done by showing a progress bar mapped to this key 
+    enrolled : {type:Boolean, default:true}  // this key is used to track if user is enrolled in course or not . SO, if he/she un-enrolls from a course the data regarding to it will still persist in our database but will not be shown to the user
+})
 
 const userModel = mongoose.model("users",userSchema);
 const adminModel = mongoose.model("admins",adminSchema);
