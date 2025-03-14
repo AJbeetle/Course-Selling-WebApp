@@ -7,7 +7,7 @@ const {purchaseRouter} = require("./userMore/purchase");
 require("dotenv").config({
     path : "../.env"
 })
-const jwt = process.env.JWT_USER;
+const jwt_us = process.env.JWT_USER;
 
 
 userRouter.post("/signup", handleUserSignup);
@@ -15,7 +15,7 @@ userRouter.post("/login", handleUserLogin);
 
 
 userRouter.use((req, res, next)=>{
-    authenticate(req,res,next,jwt);
+    authenticate(req,res,next,jwt_us);
 })
 
 userRouter.get("/dashboard", handleDashboard);
