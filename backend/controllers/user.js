@@ -1,4 +1,5 @@
 const {userModel, courseModel, purchaseModel, courseContentModel} =require("../models/db");
+const mongoose = require("mongoose");
 const {z} = require("zod");
 const bcrypt = require("bcrypt");
 require("dotenv").config({path : "../.env"});
@@ -154,6 +155,26 @@ async function handleUserCourses(req, res, next){
 }
 
 
+// this endpoint exposes all the courses that user has bought inclusing enrolled and unenrolled ones
+async function handleUserCoursesAll(req,res,next){
+    try{
+        const userId = req.userId;            //as passed down by authenticate middleware
+        const allCourses = await purchaseModel.find({
+            userId,
+        }).populate("courseId");
+    
+        const courseData = allCourses.map(course => course.courseId );
+    
+        res.json(courseData)
+    }
+    catch(e){
+        res.status(500).json({
+            err : `Some error Occured : ${e.message}`
+        })
+    }
+}
+
+
 
 // either enrolls or unenrolls from a course : DONOT CONFUSE ENROLLING into a course to BUYING A COURSE
 async function handleUserAccess(req,res, next){
@@ -190,9 +211,7 @@ async function handleUserAccess(req,res, next){
 
 // send request to this following endpoint on every refresh and after every 10 mins and donot forget to send localStorage progress item and when this request resolves delete the progress localStorage item from the client side and keep populating this localStorage progress item when user completes some part of course
 async function handleUserProgressUptoDate(req,res,next){
-    try{
-
-    
+    try{    
     const userId = req.userId;    //as passed down by authenticate middleware
 
     // Some frontend brainstorming
@@ -232,12 +251,33 @@ async function handleUserProgressUptoDate(req,res,next){
 
    const progress = req.body.progress;  //now because of app.use(express.json()) our data is already parsed to JSON, So progress is array as shown below
 
+    if(!Array.isArray(progress) || progress.length === 0) {
+        if(progress.length===0){
+            // empty progress array : its ok since user must have not studied anything
+            return res.status(200).end;
+        }
+        return res.status(403).json({
+            err : "Incorrect Progress body sent from client side"
+        })
+    }
+
    /* progress = [
                      { "this will be course id string" : ["contentIdString","contentIdString","contentIdString"] },
                      { "this will be other course id string" : ["contentIdString","contentIdString","contentIdString"] },
                      { "this will be another course id string" : ["contentIdString","contentIdString","contentIdString"] },
                      { "this will be another course id string" : ["contentIdString","contentIdString","contentIdString"] },
                     ]   */
+
+
+    /* POSTMAN REQUEST GOES IN THiS FORMAT
+        {
+            "progress": [
+                { "67d414058c26a33588355d3c": ["c67d455b0f1ee9e57e2c7014d", "67d455c3f1ee9e57e2c70157", "67d455caf1ee9e57e2c70162"] },  //contentId is given here [which user completed]
+                { "65f2e3c4a9b87d12d4c9f013": ["contentX", "contentY"] },  //invalid courseID
+                { "65f2e3c4a9b87d12d4c9f014": ["contentP", "contentQ", "contentR", "contentS"] }  //invalid courseId
+            ]
+        }
+    */
 
    //MY CODE
 
@@ -273,30 +313,73 @@ async function handleUserProgressUptoDate(req,res,next){
    const purchaseElement =  */
 
 
-   //GPT code 
+   //HELPER CODE
 
    const progressMap = new Map();
 
 //    console.log(progress);
 
+// Normal Loop 
+/* 
+   for(const course of progress){
+       const courseId = Object.keys(course)[0];
+       progressMap.set(courseId, new Set(course[courseId]));
+   }
+
+   const purchases = await purchaseModel.find({
+    userId, 
+    courseId : {$in : [...progressMap.keys()]}
+   });
+
+   if(purchases.length===0){
+    return res.status(404).json({
+        err : "no matching course found for courseId given in progress from client"
+    })
+   }
+
+   for(const purchase of purchases){
+    let updated = false;  // Track if we made changes
+    for(const content of purchase.courseStatus){
+        // Check if the contentId exists in progressMap for this courseId
+        if(progressMap.get(purchase.courseId)?.has(content.contentId.toString())){
+            content.completed = true;
+            updated = true;
+        }
+    }
+    if(updated){
+        await purchase.save();
+    }
+   }
+
+   return res.json({
+    message : "progress updated successfully"
+   })
+ */
+   
+   // mongoFilter and conditionals  : STILL NOT WORKING CORRECTLY : Need to clean this code
    progress.forEach((course)=>{
-    const courseId = Object.keys(course)[0];
-    progressMap.set(courseId, new Set(course[courseId]));
+       const courseId = Object.keys(course)[0];
+       progressMap.set(courseId, new Set(course[courseId]));
    })
 
    await purchaseModel.updateMany(
-    {userId, courseId : {$in : [...progressMap.keys()] }},
-    {$set : {}},
-    {
-        arrayFilters : [
-            {"elem.contentId" : {$in : [...progressMap.values()].flatMap(set => [...set]) } }
-        ]
-    }
+     {
+        userId,
+        courseId : {$in : [...progressMap.keys()].map(id => new mongoose.Types.ObjectId(id) )},
+        "courseStatus.contentId" : {$in : [...progressMap.values()]
+                                                    .flatMap(set => [...set])
+                                                    .map(id => new mongoose.Types.ObjectId(id))
+                                   }
+     },
+     {
+        $set : {"courseStatus.$.completed" : true}
+     }
    )
 
-   return res.json({
+    return res.json({
     message : "prgoress updated succesfully"
    })
+
    }
    catch(e){
     return res.status(500).json({
@@ -305,9 +388,56 @@ async function handleUserProgressUptoDate(req,res,next){
    }
 }
 
+
+async function handleUserCourseContent(req,res,next){
+    try{
+        const userId = req.userId;
+        const courseId = req.query.courseId;
+    
+        const courseLiveOrNot = await courseModel.findOne({_id:courseId, status:true }).lean();
+    
+        if(!courseLiveOrNot){
+            return res.status(403).json({
+                err : "BAD REQUEST : This course is not live"
+            })
+        }
+    
+        const userAuthorized = await purchaseModel.findOne({courseId, userId}).lean();
+    
+        if(!userAuthorized){
+            return res.status(403).json({
+                err : "YOU HAVE NO ACCESS TO CONTENT : This is paid course, buy it to see more",
+                courseId : courseId
+            })
+        }
+    
+        const courseContents = await courseContentModel.find({
+            courseId
+        }).populate("courseImage")
+    
+        return res.json({
+            message : `all contents for course : ${courseLiveOrNot.title} fetched`,
+            courseName : courseLiveOrNot.title,
+            courseId : courseId,
+            courseContents,
+            progress : userAuthorized.courseCompletePercent
+        })
+    }
+    catch(e){
+        return res.status(500).json({
+            err : `some error occured : ${e.message}`
+        })
+    }
+
+
+    
+}
+
 module.exports = {
     handleDashboard, 
     handleUserCourses, 
+    handleUserCoursesAll,
+    handleUserCourseContent,
     handleUserSignup, 
     handleUserLogin,
     handleUserAccess,
