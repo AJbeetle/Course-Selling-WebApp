@@ -7,6 +7,8 @@ const {userRouter} = require("./routes/user");
 // const {courseRouter} = require("./routes/course");
 // const {purchaseRouter} = require("./routes/purchase");
 const { rateLimiter } = require("./middlewares/rateLimiter");
+const path = require("path");
+const cookieParser = require("cookie-parser")
 
 const app = express();
 const PORT = process.env.PORT || 5000 ; 
@@ -23,6 +25,9 @@ mongoose.connect(URL)
         credentials : true
     }))
     app.use(rateLimiter);
+    app.use(cookieParser());
+    app.set("view engine","ejs");
+    app.set("views",path.join(__dirname,"/views"))
 
 
     app.use("/user",userRouter);
@@ -40,10 +45,7 @@ mongoose.connect(URL)
 
     // GLOBAL ERROR HANDLER
     app.use((err, req, res, next)=>{
-        res.status(500).json({
-            err : "SERVER SIDE ERROR",
-            status : false
-        })
+        res.status(500).redirect()
     })
 
 
