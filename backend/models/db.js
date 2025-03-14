@@ -23,7 +23,9 @@ const courseSchema = new Schema({
     image : {type:String, require:true},
     description : {type:String, require:true, unique:true},
     price : {type:Number, require:true},
-    creatorId : {type:mongoose.Schema.Types.ObjectId, ref:"admins", require:true}
+    creatorId : {type:mongoose.Schema.Types.ObjectId, ref:"admins", require:true},
+    status : {type:Boolean, default:false}   // this key in courseSchema tells if course is enabled for users to view or not, also if some course is delted it is not completely removed from the database, its status is set to false . By default when admin adds the course, the course has no content.So, the status is set to false
+    // once the admin do HARD_DELETE then the course is removed from courseSchema and also users alloted to that course those data in purchaseModel is also deleted related to that course
 })
 
 
@@ -87,3 +89,24 @@ const courseContentModel = mongoose.model("courseContents",courseContentSchema);
 module.exports = {
     userModel, adminModel, courseModel, purchaseModel, courseContentModel
 }
+
+
+
+//---------------------------------------DUMMY LOGINS-----------------------------------------//
+/* 
+
+
+// DUMMY ADMIN LOGINS ------------------------------------------
+{
+    "email" : "pkjha123@ddu.com",
+    "password" : "PKjha123@"
+}
+
+{
+    "email" : "aayushijoshi9910@gmail.com",
+    "password" : "Aayushi123@"
+    
+}
+ */
+
+
