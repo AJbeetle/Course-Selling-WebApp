@@ -2,3 +2,6 @@ I will add a proper readme later  ->> for now backend of this project is 99% com
 
 
 Modifications in Backend => Remove repititive code
+
+
+``` Go to backend/routes/routes.md  for detailed information about backend ```
