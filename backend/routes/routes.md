@@ -1,3 +1,5 @@
+# KINDLY VIEW IN CODE FORMAT :) 
+
 // Some Admins can provide free enrollment to the course for limited period of time => ending this time limit they might initiate automated payment. So, user might want to unenroll but still be seeing course contents to prevent transaction from their account [as soon as free trial time limit ends : courseContent will be revoked] ALSO when user unenrolls the course goes into archives and archives will have their own expiry time : 15 days . So, if archive time exceeds then also course content will be revoked 
 
 http://localhost:3000/user : 
